@@ -191,6 +191,8 @@ li.item.flash { animation: flash 1s ease; }
 .sub { font-size: 0.85rem; color: var(--muted); }
 .err { color: var(--rec); margin: 0; min-height: 1em; font-size: 0.92rem; }
 .setup .solid { padding: 14px; font-size: 1.05rem; }
+#adminBox summary { list-style: none; }
+#adminBox summary::-webkit-details-marker { display: none; }
 
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
@@ -241,14 +243,20 @@ li.item.flash { animation: flash 1s ease; }
 
 <div class="setup" id="setup" hidden>
   <form class="setup-card" id="setupForm" autocomplete="off">
-    <h2>חיבור הרשימה</h2>
+    <h2>הצטרפות לרשימה</h2>
+    <p class="sub" style="font-size:1rem;margin:0">כדי להיכנס צריך את קישור השיתוף של הרשימה. בקשו אותו ממי שמנהל אותה, ופתחו אותו בטלפון. אפשר גם להדביק אותו כאן.</p>
     <div class="field">
-      <label for="setupConfig">הגדרות Firebase</label>
-      <textarea id="setupConfig" rows="7" dir="ltr" placeholder="const firebaseConfig = { apiKey: ..., projectId: ..., appId: ... };"></textarea>
-      <span class="sub">פעם אחת בלבד, מהמדריך. מי שמצטרף דרך קישור שיתוף לא רואה את המסך הזה.</span>
+      <label for="joinLink">קישור השיתוף</label>
+      <input id="joinLink" dir="ltr" inputmode="url" placeholder="https://roiereg-svg.github.io/shopping-list/#join=...">
     </div>
+    <details class="field" id="adminBox">
+      <summary class="linkish">אני מנהל/ת הרשימה ומקים/ה אותה מההתחלה</summary>
+      <label for="setupConfig" style="margin-top:10px">הגדרות Firebase</label>
+      <textarea id="setupConfig" rows="7" dir="ltr" placeholder="const firebaseConfig = { apiKey: ..., projectId: ..., appId: ... };"></textarea>
+      <span class="sub">פעם אחת בלבד, מהמדריך.</span>
+    </details>
     <p class="err" id="setupErr" role="alert"></p>
-    <button type="submit" class="solid">המשך</button>
+    <button type="submit" class="solid">כניסה</button>
   </form>
 </div>
 
@@ -603,6 +611,15 @@ li.item.flash { animation: flash 1s ease; }
   function showSetup() { $("setup").hidden = false; }
   $("setupForm").addEventListener("submit", e => {
     e.preventDefault();
+    const link = $("joinLink").value.trim();
+    if (link) {
+      const m = link.match(/#join=([A-Za-z0-9_-]+)/);
+      let j = null; try { j = m && b64d(m[1]); } catch {}
+      if (!j?.firebase || !j?.list) { $("setupErr").textContent = "זה לא קישור שיתוף תקין. בקשו קישור חדש מכפתור \"שיתוף\" באפליקציה."; return; }
+      cfg = { firebase: j.firebase, list: j.list, name: cfg?.name || "" };
+      saveCfg(cfg); location.reload(); return;
+    }
+    if (!$("adminBox").open) { $("setupErr").textContent = "הדביקו את קישור השיתוף שקיבלתם."; return; }
     const fb = parseFirebaseConfig($("setupConfig").value);
     if (fb.error) { $("setupErr").textContent = fb.error; return; }
     cfg = { ...(cfg || {}), firebase: fb, list: cfg?.list || randomId() };
