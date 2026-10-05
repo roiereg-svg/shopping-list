@@ -61,9 +61,10 @@ header.top {
   border-bottom: 1px solid var(--line);
 }
 .title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(1.25rem, 5.5vw, 1.6rem); white-space: nowrap; margin: 0; letter-spacing: 0.01em; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(1.25rem, 5.5vw, 1.6rem); white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis; margin: 0; letter-spacing: 0.01em; }
 .count { color: var(--muted); font-size: 0.95rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.bar { height: 6px; border-radius: 3px; background: var(--line); margin-top: 10px; overflow: hidden; }
+.count { margin-top: 4px; }
+.bar { height: 6px; border-radius: 3px; background: var(--line); margin-top: 6px; overflow: hidden; }
 .bar > i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width .3s ease; }
 .notice { overflow-wrap: anywhere; margin-top: 10px; font-size: 0.9rem; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
 
@@ -94,6 +95,23 @@ li.item:first-child { border-top: 0; }
 .name { font-size: 1.08rem; font-weight: 600; overflow-wrap: anywhere; }
 .qty { color: var(--accent); font-weight: 700; margin-inline-start: 6px; font-variant-numeric: tabular-nums; }
 .by { font-size: 0.8rem; color: var(--muted); }
+.av { --size: 40px; width: var(--size); height: var(--size); border-radius: 50%; flex: none; overflow: hidden;
+  display: grid; place-items: center; background: hsl(var(--hue, 150) 35% 42%); color: #FFFFFF;
+  font-weight: 700; font-size: calc(var(--size) * 0.45); line-height: 1; }
+.av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.av.sm { --size: 24px; }
+li.item .av.sm { margin-inline-end: 2px; }
+.me-btn { background: none; border: 0; padding: 0; cursor: pointer; border-radius: 50%; }
+.me-btn .av { --size: 34px; box-shadow: 0 0 0 2px var(--accent); }
+.people { display: flex; flex-direction: column; gap: 10px; }
+.person { display: flex; align-items: center; gap: 14px; width: 100%; padding: 12px 14px; border-radius: 16px;
+  border: 1px solid var(--line); background: var(--surface); cursor: pointer; text-align: right; font-size: 1.2rem; font-weight: 700; }
+.person .av { --size: 64px; }
+.person .grow { flex: 1; min-width: 0; }
+.person.current { border-color: var(--accent); background: var(--accent-soft); }
+.photo-btn { flex: none; background: none; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 0.85rem; color: var(--muted); cursor: pointer; }
+.other-row { display: flex; gap: 8px; }
+.other-row input { flex: 1; min-width: 0; font: inherit; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
 .more { background: none; border: 0; padding: 12px 14px; color: var(--muted); cursor: pointer; border-radius: 10px; }
 .more svg { width: 20px; height: 20px; display: block; }
 li.item.done .name { text-decoration: line-through; color: var(--done); font-weight: 400; }
@@ -184,15 +202,16 @@ li.item.flash { animation: flash 1s ease; }
     <div class="title-row">
       <h1>רשימת הקניות שלנו</h1>
       <div class="head-actions">
-        <span class="count" id="count">אין פריטים</span>
         <button type="button" class="ghost" id="shareBtn" hidden>שיתוף</button>
+        <button type="button" class="me-btn" id="meBtn" hidden aria-label="החלפת משתמש"></button>
       </div>
     </div>
     <div class="sharebox" id="shareBox" hidden>
       <span>שלחו את הקישור הזה לבן/בת הזוג. מי שפותח אותו מצטרף לאותה רשימה.</span>
       <div class="row"><input id="shareUrl" readonly aria-label="קישור הצטרפות"><button type="button" class="solid" id="copyBtn">העתק</button></div>
-      <button type="button" class="linkish" id="renameBtn">שינוי השם שלי</button>
+      <button type="button" class="linkish" id="renameBtn">החלפת משתמש</button>
     </div>
+    <div class="count" id="count">אין פריטים</div>
     <div class="bar" aria-hidden="true"><i id="progress"></i></div>
     <div class="notice" id="notice" hidden></div>
   </header>
@@ -222,20 +241,32 @@ li.item.flash { animation: flash 1s ease; }
 
 <div class="setup" id="setup" hidden>
   <form class="setup-card" id="setupForm" autocomplete="off">
-    <h2>ברוכים הבאים לרשימה</h2>
-    <div class="field">
-      <label for="setupName">השם שלך</label>
-      <input id="setupName" placeholder="למשל רועי" autocomplete="given-name">
-      <span class="sub">כך בן/בת הזוג יראו מי הוסיף כל מוצר.</span>
-    </div>
+    <h2>חיבור הרשימה</h2>
     <div class="field">
       <label for="setupConfig">הגדרות Firebase</label>
       <textarea id="setupConfig" rows="7" dir="ltr" placeholder="const firebaseConfig = { apiKey: ..., projectId: ..., appId: ... };"></textarea>
-      <span class="sub">פעם אחת בלבד, מהמדריך. מי שמצטרף דרך קישור שיתוף לא צריך את זה.</span>
+      <span class="sub">פעם אחת בלבד, מהמדריך. מי שמצטרף דרך קישור שיתוף לא רואה את המסך הזה.</span>
     </div>
     <p class="err" id="setupErr" role="alert"></p>
-    <button type="submit" class="solid">כניסה לרשימה</button>
+    <button type="submit" class="solid">המשך</button>
   </form>
+</div>
+
+<div class="setup" id="picker" hidden>
+  <div class="setup-card">
+    <h2>מי משתמש בטלפון הזה?</h2>
+    <div class="people" id="people"></div>
+    <div class="field" id="otherBox" hidden>
+      <label for="otherName">השם שלך</label>
+      <form class="other-row" id="otherForm" autocomplete="off">
+        <input id="otherName" placeholder="כתבו את השם" autocomplete="given-name">
+        <button type="submit" class="solid">כניסה</button>
+      </form>
+    </div>
+    <p class="err" id="pickErr" role="alert"></p>
+    <span class="sub">אפשר להחליף משתמש בכל רגע בלחיצה על התמונה שלך בראש המסך.</span>
+  </div>
+  <input type="file" id="photoFile" accept="image/*" hidden>
 </div>
 
 <div class="scrim" id="scrim" hidden></div>
@@ -364,6 +395,7 @@ li.item.flash { animation: flash 1s ease; }
     async update(id, p) { Object.assign(items.find(i => i.id === id) || {}, p); render(); },
     async remove(id) { items = items.filter(i => i.id !== id); render(); },
     async saveLearned() { refreshKnown(); },
+    async savePhoto(name, url) { photos[name] = url; renderPeople(); render(); },
   };
 
   const $ = id => document.getElementById(id);
@@ -373,12 +405,13 @@ li.item.flash { animation: flash 1s ease; }
   let flashId = null, confirmClear = false;
 
   function itemRow(i) {
-    const by = i.addedBy && i.addedBy !== me ? `<span class="by">${esc(i.addedBy)} הוסיף/ה</span>` : "";
+    const by = "";
     return `<li class="item${i.done ? " done" : ""}${i.id === flashId ? " flash" : ""}" data-id="${esc(i.id)}">
       <button class="check" data-act="toggle" aria-pressed="${!!i.done}">
         <span class="box">${CHECK}</span>
         <span class="txt"><span class="name">${esc(i.name)}${i.qty ? `<span class="qty">× ${esc(i.qty)}</span>` : ""}</span>${by}</span>
       </button>
+      ${i.addedBy ? `<span title="${esc(i.addedBy)} הוסיף/ה">${avatar(i.addedBy, "sm")}</span>` : ""}
       <button class="more" data-act="edit" aria-label="עריכת ${esc(i.name)}">${DOTS}</button>
     </li>`;
   }
@@ -490,7 +523,7 @@ li.item.flash { animation: flash 1s ease; }
     if (pickedCat !== it.cat) {
       patch.cat = pickedCat;
       learned[key(it.name)] = pickedCat;   // remember for next time, for both of you
-      try { await store.saveLearned(); } catch {}
+      try { await store.saveLearned(key(it.name), pickedCat); } catch {}
     }
     try { await store.update(it.id, patch); } catch { showHint("השינוי לא נשמר. נסו שוב.", true); }
   });
@@ -567,24 +600,83 @@ li.item.flash { animation: flash 1s ease; }
   }
   const shareLink = () => location.origin + location.pathname + "#join=" + b64e({ firebase: cfg.firebase, list: cfg.list });
 
-  function showSetup() {
-    $("setup").hidden = false;
-    $("setupName").value = cfg?.name || "";
-    $("setupConfig").closest(".field").hidden = !!(cfg?.firebase && cfg?.list);
-  }
+  function showSetup() { $("setup").hidden = false; }
   $("setupForm").addEventListener("submit", e => {
     e.preventDefault();
-    const name = norm($("setupName").value);
-    if (!name) { $("setupErr").textContent = "כתבו את השם שלכם."; return; }
-    let next = { ...(cfg || {}), name };
-    if (!next.firebase || !next.list) {
-      const fb = parseFirebaseConfig($("setupConfig").value);
-      if (fb.error) { $("setupErr").textContent = fb.error; return; }
-      next.firebase = fb; next.list = randomId();
-    }
-    cfg = next; saveCfg(cfg);
+    const fb = parseFirebaseConfig($("setupConfig").value);
+    if (fb.error) { $("setupErr").textContent = fb.error; return; }
+    cfg = { ...(cfg || {}), firebase: fb, list: cfg?.list || randomId() };
+    saveCfg(cfg);
     location.reload();
   });
+
+  // ---------- who is using this phone ----------
+  const PEOPLE = ["רועי", "כארים"];
+  let photos = {};   // name -> small JPEG data URL, kept in Firebase with the list
+  function hueOf(name) { let h = 0; for (const ch of name) h = (h * 31 + ch.codePointAt(0)) % 360; return h; }
+  function avatar(name, cls = "") {
+    const inner = photos[name] ? `<img src="${esc(photos[name])}" alt="">` : esc([...name.trim()][0] || "?");
+    return `<span class="av ${cls}" style="--hue:${hueOf(name)}">${inner}</span>`;
+  }
+  function renderPeople() {
+    if ($("picker").hidden) return;
+    $("people").innerHTML = PEOPLE.map(n => `
+      <div class="person${n === me ? " current" : ""}" role="button" tabindex="0" data-person="${esc(n)}">
+        ${avatar(n)}<span class="grow">${esc(n)}</span>
+        <button type="button" class="photo-btn" data-photo="${esc(n)}">${photos[n] ? "החלפת תמונה" : "הוספת תמונה"}</button>
+      </div>`).join("") + `
+      <div class="person${me && !PEOPLE.includes(me) ? " current" : ""}" role="button" tabindex="0" data-person="">
+        ${me && !PEOPLE.includes(me) ? avatar(me) : `<span class="av" style="--hue:200">+</span>`}
+        <span class="grow">${me && !PEOPLE.includes(me) ? esc(me) : "אחר"}</span>
+      </div>`;
+  }
+  function showPicker() { $("picker").hidden = false; $("pickErr").textContent = ""; renderPeople(); }
+  function choose(name) {
+    cfg = { ...cfg, name }; saveCfg(cfg); me = name;
+    $("picker").hidden = true; $("otherBox").hidden = true;
+    showMe(); render();
+  }
+  function showMe() { $("meBtn").innerHTML = avatar(me); $("meBtn").hidden = !me; }
+  let photoFor = null;
+  $("people").addEventListener("click", e => {
+    const pb = e.target.closest("[data-photo]");
+    if (pb) { photoFor = pb.dataset.photo; $("photoFile").value = ""; $("photoFile").click(); return; }
+    const card = e.target.closest("[data-person]");
+    if (!card) return;
+    if (card.dataset.person) choose(card.dataset.person);
+    else { $("otherBox").hidden = false; $("otherName").value = me && !PEOPLE.includes(me) ? me : ""; $("otherName").focus(); }
+  });
+  $("people").addEventListener("keydown", e => {
+    if ((e.key === "Enter" || e.key === " ") && e.target.matches("[data-person]")) { e.preventDefault(); e.target.click(); }
+  });
+  $("otherForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const n = norm($("otherName").value);
+    if (!n) { $("pickErr").textContent = "כתבו את השם שלכם."; return; }
+    choose(n);
+  });
+  // Crop to a centred square and shrink, so the photo stays small in the database.
+  function shrinkPhoto(file) {
+    return new Promise((resolve, reject) => {
+      const img = new Image(), url = URL.createObjectURL(file);
+      img.onload = () => {
+        const side = Math.min(img.naturalWidth, img.naturalHeight), out = 192;
+        const c = document.createElement("canvas"); c.width = c.height = out;
+        c.getContext("2d").drawImage(img, (img.naturalWidth - side) / 2, (img.naturalHeight - side) / 2, side, side, 0, 0, out, out);
+        URL.revokeObjectURL(url);
+        resolve(c.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); reject(new Error("bad image")); };
+      img.src = url;
+    });
+  }
+  $("photoFile").addEventListener("change", async () => {
+    const f = $("photoFile").files?.[0];
+    if (!f || !photoFor) return;
+    try { await store.savePhoto(photoFor, await shrinkPhoto(f)); $("pickErr").textContent = ""; }
+    catch { $("pickErr").textContent = "לא הצלחתי לשמור את התמונה. נסו תמונה אחרת או בדקו חיבור."; }
+  });
+  $("meBtn").addEventListener("click", showPicker);
 
   $("shareBtn").addEventListener("click", async () => {
     if (!cfg?.list) return;
@@ -599,14 +691,15 @@ li.item.flash { animation: flash 1s ease; }
     try { await navigator.clipboard.writeText($("shareUrl").value); $("copyBtn").textContent = "הועתק"; }
     catch { $("shareUrl").select(); }
   });
-  $("renameBtn").addEventListener("click", () => { $("shareBox").hidden = true; showSetup(); });
+  $("renameBtn").addEventListener("click", () => { $("shareBox").hidden = true; showPicker(); });
 
   // ---------- connect the shared list ----------
   render(); updatePreview();
   if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
   (async () => {
-    if (!cfg?.firebase || !cfg?.list || !cfg?.name) { showSetup(); return; }
-    me = cfg.name;
+    if (!cfg?.firebase || !cfg?.list) { showSetup(); return; }
+    me = cfg.name || "";
+    if (me) showMe(); else showPicker();
     $("shareBtn").hidden = false;
     try {
       const V = "10.12.2", base = `https://www.gstatic.com/firebasejs/${V}/`;
@@ -622,7 +715,10 @@ li.item.flash { animation: flash 1s ease; }
       store.add = d => fs.addDoc(col, d);
       store.update = (id, p) => fs.updateDoc(fs.doc(col, id), p);
       store.remove = id => fs.deleteDoc(fs.doc(col, id));
-      store.saveLearned = () => fs.setDoc(learnedDoc, { map: learned });
+      const photosDoc = fs.doc(db, "lists", cfg.list, "meta", "photos");
+      store.saveLearned = (k, cat) => fs.setDoc(learnedDoc, { map: { [k]: cat } }, { merge: true });
+      store.savePhoto = (name, url) => fs.setDoc(photosDoc, { map: { [name]: url } }, { merge: true });
+      fs.onSnapshot(photosDoc, s => { photos = (s.exists() && s.data()?.map) || {}; renderPeople(); showMe(); render(); }, () => {});
       fs.onSnapshot(col, snap => {
         items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         $("notice").hidden = true;
