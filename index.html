@@ -545,9 +545,14 @@ li.item.flash { animation: flash 1s ease; }
 
   // Pull a config out of whatever the user pasted from the Firebase console.
   function parseFirebaseConfig(text) {
-    const pick = k => (text.match(new RegExp(k + `["']?\\s*:\\s*["']([^"']+)["']`)) || [])[1];
+    text = text.replace(/[\u201C\u201D\u201E\u2018\u2019\u05F4\u05F3]/g, '"');   // quotes that phones "fix"
+    const pick = k => ((text.match(new RegExp(k + `["']?\\s*:\\s*["']([^"']+)["']`)) || [])[1] || "").trim();
     const cfg = { apiKey: pick("apiKey"), authDomain: pick("authDomain"), projectId: pick("projectId"), appId: pick("appId") };
-    return cfg.apiKey && cfg.projectId && cfg.appId ? cfg : null;
+    if (!cfg.apiKey || !cfg.projectId || !cfg.appId) return { error: "לא מצאתי apiKey, projectId ו-appId בטקסט. העתיקו את כל הבלוק firebaseConfig מ-Firebase." };
+    if (cfg.apiKey.includes("...") || cfg.projectId.includes("xxxxx")) return { error: "זה בלוק הדוגמה מההסבר. צריך להעתיק את הבלוק האמיתי מ-Firebase: Project settings ← Your apps ← Config." };
+    if (!/^AIza[0-9A-Za-z_-]{35}$/.test(cfg.apiKey)) return { error: "ה-apiKey לא שלם. הוא צריך להתחיל ב-AIza ולהיות באורך 39 תווים. העתיקו שוב את הבלוק במלואו." };
+    if (!cfg.authDomain) cfg.authDomain = cfg.projectId + ".firebaseapp.com";
+    return cfg;
   }
 
   let cfg = loadCfg();
@@ -574,7 +579,7 @@ li.item.flash { animation: flash 1s ease; }
     let next = { ...(cfg || {}), name };
     if (!next.firebase || !next.list) {
       const fb = parseFirebaseConfig($("setupConfig").value);
-      if (!fb) { $("setupErr").textContent = "לא מצאתי apiKey, projectId ו-appId בטקסט. העתיקו את כל הבלוק firebaseConfig מ-Firebase."; return; }
+      if (fb.error) { $("setupErr").textContent = fb.error; return; }
       next.firebase = fb; next.list = randomId();
     }
     cfg = next; saveCfg(cfg);
@@ -628,12 +633,28 @@ li.item.flash { animation: flash 1s ease; }
       fs.onSnapshot(learnedDoc, s => { learned = (s.exists() && s.data()?.map) || {}; refreshKnown(); updatePreview(); }, () => {});
     } catch (err) {
       const code = err?.code || "";
-      notice(code.includes("operation-not-allowed") || code.includes("admin-restricted")
-        ? "צריך להפעיל כניסה אנונימית ב-Firebase (Authentication ← Sign-in method ← Anonymous)."
-        : "לא הצלחתי להתחבר לרשימה המשותפת. בדקו אינטרנט ורעננו. (" + (code || err?.message || "שגיאה") + ")");
+      if (code.includes("operation-not-allowed") || code.includes("admin-restricted"))
+        notice("צריך להפעיל כניסה אנונימית ב-Firebase (Authentication ← Sign-in method ← Anonymous), ואז לרענן.");
+      else if (/api-key|invalid-api|project|app-id|configuration/.test(code + " " + (err?.message || "")))
+        notice("הגדרות Firebase שהודבקו שגויות. לחצו כאן כדי להדביק אותן מחדש.", resetFirebase);
+      else
+        notice("לא הצלחתי להתחבר לרשימה המשותפת. בדקו אינטרנט ורעננו. (" + (code || err?.message || "שגיאה") + ")");
     }
   })();
-  function notice(msg) { const n = $("notice"); n.textContent = msg; n.hidden = false; }
+  function notice(msg, action) {
+    const n = $("notice"); n.textContent = msg; n.hidden = false;
+    if (action) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "solid"; b.textContent = "הדבקת ההגדרות מחדש";
+      b.style.marginTop = "10px"; b.style.display = "block";
+      b.addEventListener("click", action);
+      n.appendChild(b);
+    }
+  }
+  function resetFirebase() {
+    cfg = { ...(cfg || {}) }; delete cfg.firebase; saveCfg(cfg);
+    location.reload();
+  }
 })();
 </script>
 </body>
