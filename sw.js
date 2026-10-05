@@ -1,6 +1,6 @@
 // Keeps the app shell available offline (e.g. weak reception inside the supermarket).
 // Network first, so a new version is picked up on the next open.
-const CACHE = "shopping-list-v4";
+const CACHE = "shopping-list-v5";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icon.svg", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL))); self.skipWaiting(); });
 self.addEventListener("activate", e => {

@@ -153,6 +153,10 @@ li.item.flash { animation: flash 1s ease; }
 .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
 .chip i { width: 8px; height: 8px; border-radius: 2px; background: var(--sw); }
 .chip small { color: var(--muted); }
+.join { width: 26px; height: 26px; border-radius: 50%; border: 1px dashed var(--muted); background: none; color: var(--muted); cursor: pointer; font-weight: 700; line-height: 1; padding: 0; }
+.join:hover { border-color: var(--accent); color: var(--accent); }
+.join-hint { flex-basis: 100%; font-size: 0.8rem; color: var(--muted); }
+.preview { align-items: center; }
 .hint { font-size: 0.85rem; color: var(--muted); }
 .hint.err { color: var(--rec); }
 
@@ -316,7 +320,7 @@ li.item.flash { animation: flash 1s ease; }
 
   // ---------- text helpers ----------
   const NUMS = { "אחד":"1","אחת":"1","שניים":"2","שתיים":"2","שני":"2","שתי":"2","שלוש":"3","שלושה":"3","ארבע":"4","ארבעה":"4","חמש":"5","חמישה":"5","שש":"6","שישה":"6","שבע":"7","שבעה":"7","שמונה":"8","תשע":"9","תשעה":"9","עשר":"10","עשרה":"10","זוג":"2","חצי":"½" };
-  const UNITS = ["קילו","ק\"ג","קג","גרם","ליטר","ליטרים","חבילה","חבילות","בקבוק","בקבוקים","קרטון","קרטונים","יחידות","יחידה","שקית","שקיות","מגש","מגשים","קופסה","קופסאות","פחית","פחיות","שישייה","מארז","מארזים","צרור","צרורות"];
+  const UNITS = ["קילו","ק\"ג","קג","גרם","ליטר","ליטרים","חבילה","חבילות","בקבוק","בקבוקים","קרטון","קרטונים","יחידות","יחידה","שקית","שקיות","מגש","מגשים","קופסה","קופסאות","פחית","פחיות","שישייה","מארז","מארזים","צרור","צרורות"].filter(u => !["שקית","שקיות"].includes(u));
   const FILLER = new Set(["צריך","צריכים","לקנות","תוסיף","תוסיפי","תוסיפו","להוסיף","גם","את","קצת","בבקשה","עוד","וגם","אני","רוצה","תקנה","תקני","תביא","תביאי"]);
   const norm = s => s.replace(/[֑-ׇ]/g, "").replace(/[.!?;:]+/g, " ").replace(/\s+/g, " ").trim();
   const key = s => norm(s).replace(/["'׳״]/g, "");
@@ -345,11 +349,19 @@ li.item.flash { animation: flash 1s ease; }
       const s = kwScore(phrase, words, kw);
       if (s > bestScore) { bestScore = s; best = c.id; }
     }
+    // "מיץ אשכולית" is a drink even though "אשכולית" is fruit: the describing first word decides.
+    if (bestScore < 20 && words.length > 1 && HEAD_CAT[words[0]]) return HEAD_CAT[words[0]];
     return best;
   }
+  const HEAD_CAT = { "מיץ":"drinks","גלידת":"frozen","רסק":"dry","רוטב":"dry","ממרח":"dry","פירורי":"dry","דגני":"dry","אוכל":"baby","מזון":"baby","חטיף":"snacks","חטיפי":"snacks","עוגת":"bakery","שקיות":"cleaning","שקית":"cleaning","נוזל":"cleaning","טבליות":"cleaning","אבקת":"cleaning","מטליות":"cleaning","משחת":"hygiene","מברשת":"hygiene","מברשות":"hygiene","תחליב":"hygiene","גבינת":"dairy" };
   const isHit = w => guessCat(w) !== "other";
-  const isMulti = phrase => CATS.some(c => c.kw.some(kw => kw.includes(" ") && key(kw) === key(phrase)))
-    || CATS.some(c => c.kw.some(kw => kw.includes(" ") && key(kw).startsWith(key(phrase) + " ")));
+  // Multi-word names that must stay one item: from the dictionary, or ones you joined yourselves.
+  const multiNames = () => [...CATS.flatMap(c => c.kw.filter(kw => kw.includes(" ")).map(key)), ...Object.keys(learned).filter(k => k.includes(" "))];
+  const isMulti = phrase => { const k = key(phrase); return multiNames().some(m => m === k || m.startsWith(k + " ")); };
+  // Words that describe the form or container of the next word ("ספריי אקונומיקה", "נוזל כלים"),
+  // so the word after them is never a separate product.
+  const FORM_ONLY = new Set(["ספריי","תרסיס","ג'ל","ג׳ל","גל"]);
+  const GLUE = new Set(["ספריי","תרסיס","נוזל","אבקת","אבקה","ג'ל","ג׳ל","גל","קרם","סבון","שקיות","שקית","טבליות","מגבונים","נייר","מיץ","רסק","רוטב","שמן","חומץ","ממרח","מרכך","משחת","מברשת","מברשות","תחליב","מי","אוכל","מזון","חטיף","חטיפי","קופסת","גבינה","גבינת","גלידת","עוגת","פירורי","דגני","ספוג","מטליות","מגבות","בקבוק","קרטון","מארז","חבילת","שקית"]);
 
   // Split "2 קילו עגבניות" into qty + name.
   function splitQty(chunk) {
@@ -359,8 +371,6 @@ li.item.flash { animation: flash 1s ease; }
       const w0 = words.shift();
       qty = NUMS[w0] || w0;
       if (words.length > 1 && UNITS.includes(words[0])) qty += " " + words.shift();
-    } else if (words.length > 1 && UNITS.includes(words[0])) {
-      qty = "1 " + words.shift();
     }
     return { name: words.join(" "), qty };
   }
@@ -370,9 +380,10 @@ li.item.flash { animation: flash 1s ease; }
     const t = norm(text);
     if (!t) return [];
     // Commas and new lines are hard breaks. Inside each part (and in speech, which has
-    // no commas) start a new item on "ו+word", on a number, or when two known products sit side by side.
+    // no commas) start a new item on "ו+word", on a number, or when two known products sit side by side
+    // (unless the first word describes the second, or you joined them before).
     const segments = [];
-    const isNum = x => /^\d/.test(x) || NUMS[x];
+    const isNum = x => /^\d+([.,]\d+)?$/.test(x) || NUMS[x];
     for (const part of text.split(/[,\n،]+/).map(norm).filter(Boolean)) {
       let cur = [];
       const curHit = () => cur.some(w => isHit(w)) || (cur.length && isHit(cur.join(" ")));
@@ -383,7 +394,9 @@ li.item.flash { animation: flash 1s ease; }
         if (cur.length && bare && (isHit(bare) || isNum(bare) || UNITS.includes(bare) || (curHit() && !isHit(w)))) {
           segments.push(cur.join(" ")); cur = [bare]; continue;
         }
-        if (cur.length && curHit() && (isNum(w) || (isHit(w) && !isMulti(cur.join(" ") + " " + w)))) {
+        // "דאודורנט ספריי": a form word after a product describes it, it is not a new item.
+        const glued = GLUE.has(cur[cur.length - 1]) || FORM_ONLY.has(w) || isMulti(cur.join(" ") + " " + w);
+        if (cur.length && curHit() && !glued && (isNum(w) || isHit(w))) {
           segments.push(cur.join(" ")); cur = [w]; continue;
         }
         cur.push(w);
@@ -459,8 +472,25 @@ li.item.flash { animation: flash 1s ease; }
     const parsed = parse(input.value);
     $("addBtn").disabled = !parsed.length;
     $("preview").hidden = !parsed.length;
-    $("preview").innerHTML = parsed.map(p => `<span class="chip" style="--sw:${swatch(p.cat)}"><i></i>${esc(p.name)}${p.qty ? ` × ${esc(p.qty)}` : ""} <small>${CAT[p.cat].label}</small></span>`).join("");
+    $("preview").innerHTML = parsed.map((p, n) => (n ? `<button type="button" class="join" data-join="${n}" aria-label="חיבור ${esc(parsed[n - 1].name)} ו${esc(p.name)} למוצר אחד" title="זה מוצר אחד">+</button>` : "")
+      + `<span class="chip" style="--sw:${swatch(p.cat)}"><i></i>${esc(p.name)}${p.qty ? ` × ${esc(p.qty)}` : ""} <small>${CAT[p.cat].label}</small></span>`).join("")
+      + (parsed.length > 1 ? `<span class="join-hint">התפצל לא נכון? לחצו על + בין שני חלקים כדי לחבר אותם</span>` : "");
   }
+  // Join two neighbouring parts into one item, and remember the phrase so it stays whole next time.
+  $("preview").addEventListener("click", async e => {
+    const b = e.target.closest("[data-join]");
+    if (!b) return;
+    const n = +b.dataset.join, parsed = parse(input.value);
+    const a = parsed[n - 1], c = parsed[n];
+    const name = a.name + " " + c.name, qty = a.qty || c.qty;
+    const cat = guessCat(name);
+    learned[key(name)] = cat;
+    const parts = parsed.map(p => (p.qty ? p.qty + " " : "") + p.name);
+    parts.splice(n - 1, 2, (qty ? qty + " " : "") + name);
+    input.value = parts.join(", ");
+    updatePreview(); input.focus();
+    try { await store.saveLearned(key(name), cat); } catch {}
+  });
   input.addEventListener("input", updatePreview);
 
   async function addParsed(parsed) {
