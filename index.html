@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1E6B47">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="קניות">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>רשימת הקניות שלנו</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700&family=Secular+One&display=swap">
+<style>
+/* Layout: one narrow column like a paper list; sticky header with progress, composer pinned to the bottom for the thumb */
+:root {
+  color-scheme: light;
+  padding-top: env(safe-area-inset-top, 0px);
+  --bg: #F3F5EF;
+  --surface: #FFFFFF;
+  --ink: #1C2620;
+  --muted: #5E6A62;
+  --line: #DCE2D6;
+  --accent: #1E6B47;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #E1EEE5;
+  --rec: #C8442A;
+  --done: #8A958D;
+  --font-display: "Secular One", "Assistant", "Arial Hebrew", system-ui, sans-serif;
+  --font-body: "Assistant", "Arial Hebrew", "Segoe UI", system-ui, sans-serif;
+  --c-produce: #3E8E3A; --c-bakery: #B7792B; --c-dairy: #4A86B8; --c-meat: #B5483F;
+  --c-dry: #8C6A3F; --c-frozen: #3E9AA6; --c-drinks: #6D5BB0; --c-snacks: #C0508A;
+  --c-cleaning: #2F7D80; --c-hygiene: #7A7FB5; --c-baby: #C98A2E; --c-other: #7B847E;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121814; --surface: #1B231E; --ink: #E7ECE6; --muted: #A0ACA4; --line: #2C3730;
+    --accent: #5DBB8A; --accent-ink: #0E1A13; --accent-soft: #1F3328; --rec: #F0775C; --done: #6F7B73;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121814; --surface: #1B231E; --ink: #E7ECE6; --muted: #A0ACA4; --line: #2C3730;
+  --accent: #5DBB8A; --accent-ink: #0E1A13; --accent-soft: #1F3328; --rec: #F0775C; --done: #6F7B73;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { background: var(--bg); color: var(--ink); }
+body { min-height: 100%; font-family: var(--font-body); font-size: 17px; line-height: 1.45; direction: rtl; margin: 0; }
+button { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+
+.wrap { max-width: 560px; margin: 0 auto; padding-inline: 16px; padding-block: 0 150px; }
+
+header.top {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5;
+  background: var(--bg); padding-block: 14px 10px;
+  border-bottom: 1px solid var(--line);
+}
+.title-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+h1 { font-family: var(--font-display); font-weight: 400; font-size: clamp(1.25rem, 5.5vw, 1.6rem); white-space: nowrap; margin: 0; letter-spacing: 0.01em; }
+.count { color: var(--muted); font-size: 0.95rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bar { height: 6px; border-radius: 3px; background: var(--line); margin-top: 10px; overflow: hidden; }
+.bar > i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 3px; transition: width .3s ease; }
+.notice { overflow-wrap: anywhere; margin-top: 10px; font-size: 0.9rem; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+
+main { display: flex; flex-direction: column; gap: 22px; padding-top: 18px; }
+
+.empty { text-align: center; color: var(--muted); padding-block: 40px; display: flex; flex-direction: column; gap: 6px; align-items: center; }
+.empty strong { color: var(--ink); font-family: var(--font-display); font-weight: 400; font-size: 1.25rem; }
+
+section.cat h2 {
+  display: flex; align-items: center; gap: 8px; margin: 0 0 6px;
+  font-size: 0.85rem; font-weight: 700; color: var(--muted); letter-spacing: 0.04em;
+}
+section.cat h2 .sw { width: 10px; height: 10px; border-radius: 3px; background: var(--sw); flex: none; }
+section.cat h2 .n { font-weight: 600; font-variant-numeric: tabular-nums; }
+ul.items { list-style: none; margin: 0; padding: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+li.item { display: flex; align-items: center; gap: 4px; border-top: 1px solid var(--line); min-height: 56px; }
+li.item:first-child { border-top: 0; }
+.check {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px;
+  background: none; border: 0; text-align: right; padding: 10px 14px; cursor: pointer;
+}
+.box {
+  width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); flex: none;
+  display: grid; place-items: center; transition: background .15s, border-color .15s;
+}
+.box svg { width: 15px; height: 15px; opacity: 0; }
+.txt { min-width: 0; display: flex; flex-direction: column; }
+.name { font-size: 1.08rem; font-weight: 600; overflow-wrap: anywhere; }
+.qty { color: var(--accent); font-weight: 700; margin-inline-start: 6px; font-variant-numeric: tabular-nums; }
+.by { font-size: 0.8rem; color: var(--muted); }
+.more { background: none; border: 0; padding: 12px 14px; color: var(--muted); cursor: pointer; border-radius: 10px; }
+.more svg { width: 20px; height: 20px; display: block; }
+li.item.done .name { text-decoration: line-through; color: var(--done); font-weight: 400; }
+li.item.done .qty { color: var(--done); }
+li.item.done .box { background: var(--accent); border-color: var(--accent); }
+li.item.done .box svg { opacity: 1; }
+li.item.flash { animation: flash 1s ease; }
+@keyframes flash { from { background: var(--accent-soft); } to { background: transparent; } }
+
+.cart-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.cart-head h2 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.15rem; }
+.ghost { background: none; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; cursor: pointer; color: var(--muted); font-size: 0.92rem; }
+.ghost.warn { border-color: var(--rec); color: var(--rec); }
+.cart ul.items { margin-top: 8px; }
+
+/* composer */
+.composer {
+  position: fixed; inset-inline: 0; bottom: 0; z-index: 6;
+  background: var(--bg); border-top: 1px solid var(--line);
+  padding: 10px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+}
+.composer .inner { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 8px; }
+.row { display: flex; gap: 8px; align-items: center; }
+#newItem {
+  flex: 1; min-width: 0; font: inherit; font-size: 1.05rem; padding: 12px 14px;
+  border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+}
+.mic, .add {
+  flex: none; height: 50px; border-radius: 12px; border: 0; cursor: pointer;
+  display: grid; place-items: center;
+}
+.mic { width: 50px; background: var(--surface); border: 1px solid var(--line); color: var(--ink); }
+.mic svg { width: 22px; height: 22px; }
+.mic.on { background: var(--rec); border-color: var(--rec); color: #FFFFFF; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--rec) 25%, transparent); } }
+.add { padding-inline: 18px; background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+.add:disabled { opacity: .45; cursor: default; }
+.preview { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 0.88rem; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
+.chip i { width: 8px; height: 8px; border-radius: 2px; background: var(--sw); }
+.chip small { color: var(--muted); }
+.hint { font-size: 0.85rem; color: var(--muted); }
+.hint.err { color: var(--rec); }
+
+/* sheet */
+.scrim { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 9; }
+.sheet {
+  position: fixed; inset-inline: 0; bottom: 0; z-index: 10; background: var(--surface); color: var(--ink);
+  border-radius: 18px 18px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px;
+  max-height: 85vh; overflow-y: auto;
+}
+.sheet h3 { margin: 0; font-family: var(--font-display); font-weight: 400; font-size: 1.3rem; overflow-wrap: anywhere; }
+.sheet label { font-size: 0.85rem; color: var(--muted); font-weight: 700; }
+.cats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.cats button {
+  display: flex; align-items: center; gap: 8px; text-align: right; padding: 10px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--bg); cursor: pointer; font-size: 0.95rem;
+}
+.cats button i { width: 10px; height: 10px; border-radius: 3px; background: var(--sw); flex: none; }
+.cats button[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); font-weight: 700; }
+#qtyInput { font: inherit; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); width: 100%; }
+.sheet-actions { display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
+.solid { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 10px; padding: 10px 20px; font-weight: 700; cursor: pointer; }
+
+.head-actions { display: flex; align-items: center; gap: 10px; }
+.sharebox { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; font-size: 0.92rem; color: var(--muted); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.sharebox input { flex: 1; min-width: 0; font: inherit; font-size: 0.85rem; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); direction: ltr; }
+.linkish { align-self: flex-start; background: none; border: 0; padding: 0; color: var(--accent); text-decoration: underline; cursor: pointer; font-size: 0.9rem; }
+.setup { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto; padding: 24px 16px; }
+.setup-card { max-width: 480px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+.setup-card h2 { font-family: var(--font-display); font-weight: 400; font-size: 1.6rem; margin: 0; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-weight: 700; }
+.field input, .field textarea { font: inherit; padding: 12px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
+.field textarea { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8rem; }
+.sub { font-size: 0.85rem; color: var(--muted); }
+.err { color: var(--rec); margin: 0; min-height: 1em; font-size: 0.92rem; }
+.setup .solid { padding: 14px; font-size: 1.05rem; }
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="title-row">
+      <h1>רשימת הקניות שלנו</h1>
+      <div class="head-actions">
+        <span class="count" id="count">אין פריטים</span>
+        <button type="button" class="ghost" id="shareBtn" hidden>שיתוף</button>
+      </div>
+    </div>
+    <div class="sharebox" id="shareBox" hidden>
+      <span>שלחו את הקישור הזה לבן/בת הזוג. מי שפותח אותו מצטרף לאותה רשימה.</span>
+      <div class="row"><input id="shareUrl" readonly aria-label="קישור הצטרפות"><button type="button" class="solid" id="copyBtn">העתק</button></div>
+      <button type="button" class="linkish" id="renameBtn">שינוי השם שלי</button>
+    </div>
+    <div class="bar" aria-hidden="true"><i id="progress"></i></div>
+    <div class="notice" id="notice" hidden></div>
+  </header>
+
+  <main id="list" aria-live="polite">
+    <div class="empty" id="empty">
+      <strong>הרשימה ריקה</strong>
+      <span>כתבו מוצר למטה או לחצו על המיקרופון ואמרו למשל: חלב, שתי עגבניות ולחם.</span>
+    </div>
+  </main>
+</div>
+
+<div class="composer">
+  <div class="inner">
+    <div class="preview" id="preview" hidden></div>
+    <form class="row" id="addForm" autocomplete="off">
+      <button type="button" class="mic" id="mic" aria-label="הקלטה קולית" title="הקלטה קולית">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v4"/></svg>
+      </button>
+      <input id="newItem" list="known" placeholder="מה צריך לקנות?" enterkeyhint="done" aria-label="מוצר חדש">
+      <datalist id="known"></datalist>
+      <button type="submit" class="add" id="addBtn" disabled>הוסף</button>
+    </form>
+    <div class="hint" id="hint" hidden></div>
+  </div>
+</div>
+
+<div class="setup" id="setup" hidden>
+  <form class="setup-card" id="setupForm" autocomplete="off">
+    <h2>ברוכים הבאים לרשימה</h2>
+    <div class="field">
+      <label for="setupName">השם שלך</label>
+      <input id="setupName" placeholder="למשל רועי" autocomplete="given-name">
+      <span class="sub">כך בן/בת הזוג יראו מי הוסיף כל מוצר.</span>
+    </div>
+    <div class="field">
+      <label for="setupConfig">הגדרות Firebase</label>
+      <textarea id="setupConfig" rows="7" dir="ltr" placeholder="const firebaseConfig = { apiKey: ..., projectId: ..., appId: ... };"></textarea>
+      <span class="sub">פעם אחת בלבד, מהמדריך. מי שמצטרף דרך קישור שיתוף לא צריך את זה.</span>
+    </div>
+    <p class="err" id="setupErr" role="alert"></p>
+    <button type="submit" class="solid">כניסה לרשימה</button>
+  </form>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+  <h3 id="sheetTitle"></h3>
+  <div>
+    <label for="qtyInput">כמות</label>
+    <input id="qtyInput" placeholder="למשל 2, או 1 קילו">
+  </div>
+  <div>
+    <label>קטגוריה</label>
+    <div class="cats" id="catPicker"></div>
+  </div>
+  <div class="sheet-actions">
+    <button type="button" class="ghost warn" id="delBtn">מחק מהרשימה</button>
+    <button type="button" class="solid" id="saveBtn">שמור</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---------- categories, in the order you walk a supermarket ----------
+  const CATS = [
+    { id: "produce", label: "פירות וירקות", kw: ["עגבני","מלפפון","מלפפונים","גזר","בצל","שום","תפוח אדמה","תפוחי אדמה","תפוא","בטטה","פלפל","חסה","כרוב","כרובית","ברוקולי","קישוא","קישואים","חציל","חצילים","פטרוזיליה","כוסברה","שמיר","נענע","בזיליקום","פטריות","פטריה","תרד","סלק","צנון","צנונית","תירס","אבוקדו","לימון","לימונים","תפוח","תפוחים","בננה","בננות","תפוז","תפוזים","קלמנטינה","קלמנטינות","אגס","אגסים","ענב","ענבים","אבטיח","מלון","תות","תותים","אפרסק","אפרסקים","שזיף","שזיפים","מנגו","אננס","קיווי","רימון","רימונים","אשכולית","פירות","ירקות","סלרי","כרישה","ג'ינג'ר","ג׳ינג׳ר","דלעת","שעועית ירוקה","נבטים","עלי בייבי","רוקט","ארטישוק","תמר","תמרים","אוכמניות","פטל","דובדבנים","נקטרינה","פומלה","ליים","שרי"] },
+    { id: "bakery", label: "לחם ומאפים", kw: ["לחם","לחמניה","לחמניות","פיתה","פיתות","חלה","חלות","באגט","טורטיה","טורטיות","בייגל","קרואסון","קרואסונים","עוגה","עוגות","עוגיות","מאפה","מאפים","בורקס","לאפה","לחמים","פרנה","קרקרים","פריכיות","פריכית","בגט"] },
+    { id: "dairy", label: "מוצרי חלב וביצים", kw: ["חלב","גבינה","גבינות","גבינה צהובה","גבינה לבנה","קוטג","קוטג'","קוטג׳","יוגורט","יוגורטים","שמנת","שמנת מתוקה","שמנת חמוצה","חמאה","ביצים","ביצה","לבנה","לבן","אשל","מעדן","מעדנים","פודינג","בולגרית","פטה","מוצרלה","פרמזן","צפתית","ריקוטה","גאודה","עמק","טל העמק","חלב שקדים","חלב סויה","חלב שיבולת","חלב שיבולת שועל","מרגרינה","שוקו","מילקי","דנונה","גבינת שמנת","קממבר","ברי"] },
+    { id: "meat", label: "בשר, עוף ודגים", kw: ["עוף","חזה עוף","שניצל","שניצלים","פרגית","פרגיות","כרעיים","שוקיים","כנפיים","בשר","בשר טחון","טחון","סטייק","אנטריקוט","צלעות","קבב","המבורגר","המבורגרים","נקניק","נקניקיות","נקניקייה","פסטרמה","סלמון","דג","דגים","טונה טרייה","אמנון","דניס","לברק","בקלה","הודו","שווארמה","כבד","קציצות","פילה","אסאדו","צלי"] },
+    { id: "dry", label: "מזווה ושימורים", kw: ["אורז","פסטה","ספגטי","פתיתים","קוסקוס","בורגול","קינואה","עדשים","חומוס","שעועית","קמח","סוכר","מלח","פלפל שחור","שמן","שמן זית","שמן קנולה","חומץ","קטשופ","מיונז","חרדל","טחינה","רסק","רסק עגבניות","רוטב","רטבים","רוטב סויה","סויה","טונה","שימורים","שימור","תירס שימורים","זיתים","זית","מלפפונים חמוצים","חמוצים","ריבה","דבש","ממרח","נוטלה","חמאת בוטנים","קורנפלקס","דגני בוקר","גרנולה","שיבולת שועל","קפה","נס קפה","תה","קקאו","שמרים","אבקת אפיה","סודה לשתיה","וניל","פירורי לחם","תבלינים","תבלין","פפריקה","כמון","כורכום","אבקת מרק","מרק","אטריות","נודלס","קרם קוקוס","חלב קוקוס","שקדים","אגוזים","אגוזי מלך","קשיו","צימוקים","תמרים יבשים","פירות יבשים","זרעים","גרעינים","סילאן","מייפל","שוקולד מריר"] },
+    { id: "frozen", label: "קפואים", kw: ["קפוא","קפואים","קפואה","גלידה","גלידות","ארטיק","ארטיקים","אפונה","שעועית קפואה","ירקות קפואים","בצק עלים","בצק","פיצה","מלאווח","ג'חנון","ג׳חנון","צ'יפס","צ׳יפס","בורקס קפוא","קרח","פירות קפואים","כופתאות","ופלים בלגיים"] },
+    { id: "drinks", label: "משקאות", kw: ["מיץ תפוזים","מיץ ענבים","מיץ תפוחים","מים","מים מינרלים","סודה","קולה","קוקה קולה","ספרייט","פאנטה","מיץ","מיצים","תפוזים טבעי","בירה","בירות","יין","יינות","וודקה","ערק","וויסקי","משקה","משקאות","תרכיז","פטל","פריגת","מים מוגזים","שוופס","אייס קפה","משקה אנרגיה","רד בול","ליפטון"] },
+    { id: "snacks", label: "חטיפים ומתוקים", kw: ["במבה","ביסלי","תפוצ'יפס","תפוצ׳יפס","דוריטוס","חטיף","חטיפים","שוקולד","שוקולדים","סוכריות","סוכריה","מסטיק","וופל","וופלים","בייגלה","פופקורן","חטיף אנרגיה","חטיפי חלבון","קליק","פסק זמן","כיף כף","קינדר","מרשמלו","גומי"] },
+    { id: "cleaning", label: "ניקיון ובית", kw: ["נייר טואלט","טואלט","מגבות נייר","מגבונים לבית","נייר סופג","סבון כלים","נוזל כלים","טבליות למדיח","מדיח","אבקת כביסה","ג'ל כביסה","ג׳ל כביסה","מרכך כביסה","מרכך","אקונומיקה","סנו","אקמה","ספוג","ספוגים","שקיות זבל","שקית זבל","שקיות","נייר אפיה","נייר כסף","ניילון נצמד","מטליות","מטלית","מגב","מטהר אוויר","נוזל רצפה","ניקוי","חלונית","כלים חד פעמיים","צלחות חד פעמיות","כוסות חד פעמיות","סכו\"ם חד פעמי","מפיות","נרות","סוללות","נורה","נורות","קיסמים","אלומיניום","תבניות"] },
+    { id: "hygiene", label: "טיפוח והיגיינה", kw: ["שמפו","מרכך שיער","סבון","סבון גוף","ג'ל רחצה","ג׳ל רחצה","משחת שיניים","מברשת שיניים","מברשות שיניים","חוט דנטלי","דאודורנט","דיאודורנט","קרם","קרם גוף","קרם הגנה","קרם לחות","תחבושות","טמפונים","פדים","מגבונים","מגבונים לחים","צמר גפן","מקלוני אוזניים","סכין גילוח","סכיני גילוח","קצף גילוח","פלסטרים","אקמול","נורופן","ויטמינים","ויטמין","מי פה","לק","מסיר איפור","ספריי"] },
+    { id: "baby", label: "תינוקות וחיות", kw: ["חיתולים","חיתול","מטרנה","סימילאק","דייסה","מחית","מוצץ","בקבוק לתינוק","אוכל לכלב","אוכל לחתול","חול לחתול","חטיפים לכלב","מזון לכלבים","מזון לחתולים"] },
+    { id: "other", label: "שונות", kw: [] },
+  ];
+  const CAT = Object.fromEntries(CATS.map(c => [c.id, c]));
+  const swatch = id => `var(--c-${id})`;
+
+  // ---------- text helpers ----------
+  const NUMS = { "אחד":"1","אחת":"1","שניים":"2","שתיים":"2","שני":"2","שתי":"2","שלוש":"3","שלושה":"3","ארבע":"4","ארבעה":"4","חמש":"5","חמישה":"5","שש":"6","שישה":"6","שבע":"7","שבעה":"7","שמונה":"8","תשע":"9","תשעה":"9","עשר":"10","עשרה":"10","זוג":"2","חצי":"½" };
+  const UNITS = ["קילו","ק\"ג","קג","גרם","ליטר","ליטרים","חבילה","חבילות","בקבוק","בקבוקים","קרטון","קרטונים","יחידות","יחידה","שקית","שקיות","מגש","מגשים","קופסה","קופסאות","פחית","פחיות","שישייה","מארז","מארזים","צרור","צרורות"];
+  const FILLER = new Set(["צריך","צריכים","לקנות","תוסיף","תוסיפי","תוסיפו","להוסיף","גם","את","קצת","בבקשה","עוד","וגם","אני","רוצה","תקנה","תקני","תביא","תביאי"]);
+  const norm = s => s.replace(/[֑-ׇ]/g, "").replace(/[.!?;:]+/g, " ").replace(/\s+/g, " ").trim();
+  const key = s => norm(s).replace(/["'׳״]/g, "");
+
+  // Score a phrase against one keyword; longer, more specific matches win.
+  function kwScore(phrase, words, kw) {
+    const k = key(kw);
+    if (!k) return 0;
+    if (k.includes(" ")) return (` ${phrase} `).includes(` ${k} `) ? k.length + 20 : 0;
+    let best = 0;
+    for (const w of words) {
+      const ww = w.startsWith("ה") && w.length > 3 ? [w, w.slice(1)] : [w];
+      for (const x of ww) {
+        if (x === k) best = Math.max(best, k.length + 10);
+        else if (k.length >= 3 && x.startsWith(k) && x.length - k.length <= 3) best = Math.max(best, k.length + 5);
+      }
+    }
+    return best;
+  }
+  function guessCat(name) {
+    const phrase = key(name);
+    if (learned[phrase]) return learned[phrase];
+    const words = phrase.split(" ");
+    let best = "other", bestScore = 0;
+    for (const c of CATS) for (const kw of c.kw) {
+      const s = kwScore(phrase, words, kw);
+      if (s > bestScore) { bestScore = s; best = c.id; }
+    }
+    return best;
+  }
+  const isHit = w => guessCat(w) !== "other";
+  const isMulti = phrase => CATS.some(c => c.kw.some(kw => kw.includes(" ") && key(kw) === key(phrase)))
+    || CATS.some(c => c.kw.some(kw => kw.includes(" ") && key(kw).startsWith(key(phrase) + " ")));
+
+  // Split "2 קילו עגבניות" into qty + name.
+  function splitQty(chunk) {
+    const words = chunk.split(" ").filter(Boolean);
+    let qty = "";
+    if (words.length > 1 && (/^\d+([.,]\d+)?$/.test(words[0]) || NUMS[words[0]])) {
+      const w0 = words.shift();
+      qty = NUMS[w0] || w0;
+      if (words.length > 1 && UNITS.includes(words[0])) qty += " " + words.shift();
+    } else if (words.length > 1 && UNITS.includes(words[0])) {
+      qty = "1 " + words.shift();
+    }
+    return { name: words.join(" "), qty };
+  }
+
+  // Turn free text (typed or spoken) into items.
+  function parse(text) {
+    const t = norm(text);
+    if (!t) return [];
+    // Commas and new lines are hard breaks. Inside each part (and in speech, which has
+    // no commas) start a new item on "ו+word", on a number, or when two known products sit side by side.
+    const segments = [];
+    const isNum = x => /^\d/.test(x) || NUMS[x];
+    for (const part of text.split(/[,\n،]+/).map(norm).filter(Boolean)) {
+      let cur = [];
+      const curHit = () => cur.some(w => isHit(w)) || (cur.length && isHit(cur.join(" ")));
+      for (const w of part.split(" ")) {
+        if (w === "וגם") { if (cur.length) segments.push(cur.join(" ")); cur = []; continue; }
+        if (!cur.length && FILLER.has(w)) continue;
+        const bare = w.startsWith("ו") && w.length > 2 ? w.slice(1) : null;
+        if (cur.length && bare && (isHit(bare) || isNum(bare) || UNITS.includes(bare) || (curHit() && !isHit(w)))) {
+          segments.push(cur.join(" ")); cur = [bare]; continue;
+        }
+        if (cur.length && curHit() && (isNum(w) || (isHit(w) && !isMulti(cur.join(" ") + " " + w)))) {
+          segments.push(cur.join(" ")); cur = [w]; continue;
+        }
+        cur.push(w);
+      }
+      if (cur.length) segments.push(cur.join(" "));
+    }
+    return segments.map(splitQty).filter(x => x.name).map(x => ({ ...x, cat: guessCat(x.name) }));
+  }
+
+  // ---------- state + storage ----------
+  let items = [];        // {id, name, qty, cat, done, createdAt, addedBy, doneAt}
+  let learned = {};      // normalized name -> category id (shared, learns from your corrections)
+  let me = "";
+  const store = {
+    mode: "local",
+    async add(d) { const id = "l" + Math.random().toString(36).slice(2); items.push({ id, ...d }); render(); },
+    async update(id, p) { Object.assign(items.find(i => i.id === id) || {}, p); render(); },
+    async remove(id) { items = items.filter(i => i.id !== id); render(); },
+    async saveLearned() { refreshKnown(); },
+  };
+
+  const $ = id => document.getElementById(id);
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+  const CHECK = '<svg viewBox="0 0 24 24" fill="none" stroke="var(--accent-ink)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+  const DOTS = '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
+  let flashId = null, confirmClear = false;
+
+  function itemRow(i) {
+    const by = i.addedBy && i.addedBy !== me ? `<span class="by">${esc(i.addedBy)} הוסיף/ה</span>` : "";
+    return `<li class="item${i.done ? " done" : ""}${i.id === flashId ? " flash" : ""}" data-id="${esc(i.id)}">
+      <button class="check" data-act="toggle" aria-pressed="${!!i.done}">
+        <span class="box">${CHECK}</span>
+        <span class="txt"><span class="name">${esc(i.name)}${i.qty ? `<span class="qty">× ${esc(i.qty)}</span>` : ""}</span>${by}</span>
+      </button>
+      <button class="more" data-act="edit" aria-label="עריכת ${esc(i.name)}">${DOTS}</button>
+    </li>`;
+  }
+
+  function render() {
+    const open = items.filter(i => !i.done).sort((a, b) => a.createdAt - b.createdAt);
+    const done = items.filter(i => i.done).sort((a, b) => (b.doneAt || 0) - (a.doneAt || 0));
+    const total = items.length;
+    $("count").textContent = total ? (open.length ? `נשארו ${open.length} מתוך ${total}` : `הכל בעגלה`) : "אין פריטים";
+    $("progress").style.width = total ? `${Math.round(done.length / total * 100)}%` : "0";
+    let html = "";
+    if (!total) {
+      html = `<div class="empty"><strong>הרשימה ריקה</strong><span>כתבו מוצר למטה או לחצו על המיקרופון ואמרו למשל: חלב, שתי עגבניות ולחם.</span></div>`;
+    }
+    for (const c of CATS) {
+      const list = open.filter(i => (CAT[i.cat] ? i.cat : "other") === c.id);
+      if (!list.length) continue;
+      html += `<section class="cat" style="--sw:${swatch(c.id)}"><h2><span class="sw"></span>${c.label} <span class="n">${list.length}</span></h2><ul class="items">${list.map(itemRow).join("")}</ul></section>`;
+    }
+    if (done.length) {
+      html += `<section class="cart"><div class="cart-head"><h2>בעגלה (${done.length})</h2>
+        <button class="ghost${confirmClear ? " warn" : ""}" data-act="clear">${confirmClear ? "בטוח? לחצו שוב למחיקה" : "נקה את מה שבעגלה"}</button></div>
+        <ul class="items">${done.map(itemRow).join("")}</ul></section>`;
+    }
+    $("list").innerHTML = html;
+    flashId = null;
+  }
+
+  function refreshKnown() {
+    const known = new Set([...Object.keys(learned), ...items.map(i => key(i.name))]);
+    $("known").innerHTML = [...known].slice(0, 200).map(n => `<option value="${esc(n)}"></option>`).join("");
+  }
+
+  // ---------- adding ----------
+  const input = $("newItem");
+  function updatePreview() {
+    const parsed = parse(input.value);
+    $("addBtn").disabled = !parsed.length;
+    $("preview").hidden = !parsed.length;
+    $("preview").innerHTML = parsed.map(p => `<span class="chip" style="--sw:${swatch(p.cat)}"><i></i>${esc(p.name)}${p.qty ? ` × ${esc(p.qty)}` : ""} <small>${CAT[p.cat].label}</small></span>`).join("");
+  }
+  input.addEventListener("input", updatePreview);
+
+  async function addParsed(parsed) {
+    for (const p of parsed) {
+      const existing = items.find(i => key(i.name) === key(p.name));
+      if (existing) {
+        const patch = { done: false };
+        if (p.qty) patch.qty = p.qty;
+        flashId = existing.id;
+        await store.update(existing.id, patch);
+        continue;
+      }
+      await store.add({ name: p.name, qty: p.qty || "", cat: p.cat, done: false, createdAt: Date.now(), addedBy: me || "" });
+    }
+  }
+
+  $("addForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const parsed = parse(input.value);
+    if (!parsed.length) return;
+    input.value = ""; updatePreview();
+    try { await addParsed(parsed); } catch (err) { showHint("לא הצלחתי לשמור. בדקו חיבור לאינטרנט ונסו שוב.", true); }
+  });
+
+  // ---------- list interactions ----------
+  $("list").addEventListener("click", async e => {
+    const btn = e.target.closest("[data-act]");
+    if (!btn) return;
+    const act = btn.dataset.act;
+    if (act === "clear") {
+      if (!confirmClear) { confirmClear = true; render(); setTimeout(() => { if (confirmClear) { confirmClear = false; render(); } }, 4000); return; }
+      confirmClear = false;
+      const done = items.filter(i => i.done);
+      for (const i of done) { try { await store.remove(i.id); } catch {} }
+      render();
+      return;
+    }
+    const id = btn.closest("li")?.dataset.id;
+    const it = items.find(i => i.id === id);
+    if (!it) return;
+    if (act === "toggle") {
+      const done = !it.done;
+      try { await store.update(id, done ? { done, doneAt: Date.now(), doneBy: me || "" } : { done, doneAt: 0 }); }
+      catch { showHint("הסימון לא נשמר. נסו שוב.", true); }
+    } else if (act === "edit") openSheet(it);
+  });
+
+  // ---------- edit sheet ----------
+  let editing = null, pickedCat = null;
+  function openSheet(it) {
+    editing = it; pickedCat = CAT[it.cat] ? it.cat : "other";
+    $("sheetTitle").textContent = it.name;
+    $("qtyInput").value = it.qty || "";
+    drawCats();
+    $("scrim").hidden = false; $("sheet").hidden = false;
+  }
+  function drawCats() {
+    $("catPicker").innerHTML = CATS.map(c => `<button type="button" data-cat="${c.id}" aria-pressed="${c.id === pickedCat}" style="--sw:${swatch(c.id)}"><i></i>${c.label}</button>`).join("");
+  }
+  function closeSheet() { $("scrim").hidden = true; $("sheet").hidden = true; editing = null; }
+  $("catPicker").addEventListener("click", e => { const b = e.target.closest("[data-cat]"); if (b) { pickedCat = b.dataset.cat; drawCats(); } });
+  $("scrim").addEventListener("click", closeSheet);
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && editing) closeSheet(); });
+  $("saveBtn").addEventListener("click", async () => {
+    if (!editing) return;
+    const it = editing; closeSheet();
+    const patch = { qty: norm($("qtyInput").value) };
+    if (pickedCat !== it.cat) {
+      patch.cat = pickedCat;
+      learned[key(it.name)] = pickedCat;   // remember for next time, for both of you
+      try { await store.saveLearned(); } catch {}
+    }
+    try { await store.update(it.id, patch); } catch { showHint("השינוי לא נשמר. נסו שוב.", true); }
+  });
+  $("delBtn").addEventListener("click", async () => {
+    if (!editing) return;
+    const id = editing.id; closeSheet();
+    try { await store.remove(id); } catch { showHint("המחיקה לא נשמרה. נסו שוב.", true); }
+  });
+
+  // ---------- voice ----------
+  let hintTimer;
+  function showHint(msg, err) {
+    const h = $("hint"); h.textContent = msg; h.className = "hint" + (err ? " err" : ""); h.hidden = false;
+    clearTimeout(hintTimer); hintTimer = setTimeout(() => { h.hidden = true; }, 7000);
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec = null, listening = false, baseText = "";
+  const NO_SR = "הדפדפן הזה לא תומך בזיהוי דיבור. פתחו את האפליקציה ב-Chrome (אנדרואיד) או ב-Safari (אייפון), או השתמשו במיקרופון שבמקלדת.";
+  const DENIED = "אין הרשאה למיקרופון. אשרו גישה למיקרופון בהגדרות הדפדפן לאתר הזה ונסו שוב.";
+  $("mic").addEventListener("click", () => {
+    if (!SR) { showHint(NO_SR, true); input.focus(); return; }
+    if (listening) { rec.stop(); return; }
+    try {
+      rec = new SR();
+      rec.lang = "he-IL"; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+      baseText = input.value ? input.value.trim() + " " : "";
+      rec.onstart = () => { listening = true; $("mic").classList.add("on"); showHint("מקשיב… אמרו את המוצרים, למשל: חלב, ביצים ושני לחמים"); };
+      rec.onresult = ev => {
+        let txt = "";
+        for (const r of ev.results) txt += r[0].transcript;
+        input.value = baseText + txt; updatePreview();
+      };
+      rec.onerror = ev => {
+        if (ev.error === "not-allowed" || ev.error === "service-not-allowed") showHint(DENIED, true);
+        else if (ev.error === "audio-capture") showHint("לא נמצא מיקרופון פעיל. בדקו שאף אפליקציה אחרת לא משתמשת בו.", true);
+        else if (ev.error === "network") showHint("זיהוי הדיבור צריך חיבור לאינטרנט. בדקו את החיבור ונסו שוב.", true);
+        else if (ev.error === "no-speech") showHint("לא שמעתי כלום. נסו שוב, קרוב יותר לטלפון.");
+        else if (ev.error !== "aborted") showHint("ההקלטה נעצרה. נסו שוב.", true);
+      };
+      rec.onend = () => { listening = false; $("mic").classList.remove("on"); if (input.value.trim()) showHint("בדקו את הפיצול למעלה ולחצו הוסף."); };
+      rec.start();
+    } catch { showHint(NO_SR, true); }
+  });
+
+  // ---------- setup + sharing ----------
+  const LS = "shoppingList.v1";
+  const loadCfg = () => { try { return JSON.parse(localStorage.getItem(LS) || "null"); } catch { return null; } };
+  const saveCfg = c => { try { localStorage.setItem(LS, JSON.stringify(c)); } catch {} };
+  const b64e = o => btoa(unescape(encodeURIComponent(JSON.stringify(o)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  const b64d = t => JSON.parse(decodeURIComponent(escape(atob(t.replace(/-/g, "+").replace(/_/g, "/")))));
+  const randomId = () => Array.from(crypto.getRandomValues(new Uint8Array(18)), x => x.toString(16).padStart(2, "0")).join("");
+
+  // Pull a config out of whatever the user pasted from the Firebase console.
+  function parseFirebaseConfig(text) {
+    const pick = k => (text.match(new RegExp(k + `["']?\\s*:\\s*["']([^"']+)["']`)) || [])[1];
+    const cfg = { apiKey: pick("apiKey"), authDomain: pick("authDomain"), projectId: pick("projectId"), appId: pick("appId") };
+    return cfg.apiKey && cfg.projectId && cfg.appId ? cfg : null;
+  }
+
+  let cfg = loadCfg();
+  const join = location.hash.match(/^#join=(.+)$/);
+  if (join) {
+    try {
+      const j = b64d(join[1]);
+      if (j.firebase && j.list) cfg = { firebase: j.firebase, list: j.list, name: cfg?.name || "" };
+      saveCfg(cfg);
+    } catch {}
+    history.replaceState(null, "", location.pathname + location.search);
+  }
+  const shareLink = () => location.origin + location.pathname + "#join=" + b64e({ firebase: cfg.firebase, list: cfg.list });
+
+  function showSetup() {
+    $("setup").hidden = false;
+    $("setupName").value = cfg?.name || "";
+    $("setupConfig").closest(".field").hidden = !!(cfg?.firebase && cfg?.list);
+  }
+  $("setupForm").addEventListener("submit", e => {
+    e.preventDefault();
+    const name = norm($("setupName").value);
+    if (!name) { $("setupErr").textContent = "כתבו את השם שלכם."; return; }
+    let next = { ...(cfg || {}), name };
+    if (!next.firebase || !next.list) {
+      const fb = parseFirebaseConfig($("setupConfig").value);
+      if (!fb) { $("setupErr").textContent = "לא מצאתי apiKey, projectId ו-appId בטקסט. העתיקו את כל הבלוק firebaseConfig מ-Firebase."; return; }
+      next.firebase = fb; next.list = randomId();
+    }
+    cfg = next; saveCfg(cfg);
+    location.reload();
+  });
+
+  $("shareBtn").addEventListener("click", async () => {
+    if (!cfg?.list) return;
+    const url = shareLink();
+    $("shareUrl").value = url;
+    $("shareBox").hidden = !$("shareBox").hidden;
+    if (navigator.share && !$("shareBox").hidden) {
+      try { await navigator.share({ title: "רשימת הקניות שלנו", text: "הצטרפו לרשימת הקניות המשותפת", url }); } catch {}
+    }
+  });
+  $("copyBtn").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText($("shareUrl").value); $("copyBtn").textContent = "הועתק"; }
+    catch { $("shareUrl").select(); }
+  });
+  $("renameBtn").addEventListener("click", () => { $("shareBox").hidden = true; showSetup(); });
+
+  // ---------- connect the shared list ----------
+  render(); updatePreview();
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+  (async () => {
+    if (!cfg?.firebase || !cfg?.list || !cfg?.name) { showSetup(); return; }
+    me = cfg.name;
+    $("shareBtn").hidden = false;
+    try {
+      const V = "10.12.2", base = `https://www.gstatic.com/firebasejs/${V}/`;
+      const [{ initializeApp }, auth, fs] = await Promise.all([
+        import(base + "firebase-app.js"), import(base + "firebase-auth.js"), import(base + "firebase-firestore.js"),
+      ]);
+      const app = initializeApp(cfg.firebase);
+      await auth.signInAnonymously(auth.getAuth(app));
+      const db = fs.initializeFirestore(app, { localCache: fs.persistentLocalCache() });
+      const col = fs.collection(db, "lists", cfg.list, "items");
+      const learnedDoc = fs.doc(db, "lists", cfg.list, "meta", "learned");
+      store.mode = "firebase";
+      store.add = d => fs.addDoc(col, d);
+      store.update = (id, p) => fs.updateDoc(fs.doc(col, id), p);
+      store.remove = id => fs.deleteDoc(fs.doc(col, id));
+      store.saveLearned = () => fs.setDoc(learnedDoc, { map: learned });
+      fs.onSnapshot(col, snap => {
+        items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        $("notice").hidden = true;
+        render(); refreshKnown();
+      }, err => notice(err?.code === "permission-denied"
+        ? "Firebase חסם את הגישה. בדקו שהעתקתם את כללי האבטחה מהמדריך."
+        : "החיבור לרשימה נותק. בדקו אינטרנט ורעננו."));
+      fs.onSnapshot(learnedDoc, s => { learned = (s.exists() && s.data()?.map) || {}; refreshKnown(); updatePreview(); }, () => {});
+    } catch (err) {
+      const code = err?.code || "";
+      notice(code.includes("operation-not-allowed") || code.includes("admin-restricted")
+        ? "צריך להפעיל כניסה אנונימית ב-Firebase (Authentication ← Sign-in method ← Anonymous)."
+        : "לא הצלחתי להתחבר לרשימה המשותפת. בדקו אינטרנט ורעננו. (" + (code || err?.message || "שגיאה") + ")");
+    }
+  })();
+  function notice(msg) { const n = $("notice"); n.textContent = msg; n.hidden = false; }
+})();
+</script>
+</body>
+</html>
