@@ -198,6 +198,22 @@ li.item.flash { animation: flash 1s ease; }
 #adminBox summary { list-style: none; }
 #adminBox summary::-webkit-details-marker { display: none; }
 
+/* install prompt */
+.ib { position: fixed; inset-inline: 12px; bottom: calc(92px + env(safe-area-inset-bottom, 0px)); z-index: 8; max-width: 536px; margin: 0 auto;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 18px; padding: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.25); display: flex; flex-direction: column; gap: 12px; }
+.ib .top { display: flex; gap: 12px; align-items: center; }
+.ib .top img { width: 52px; height: 52px; border-radius: 12px; flex: none; }
+.ib b { display: block; font-size: 1.05rem; }
+.ib .top span { color: var(--muted); font-size: 0.9rem; }
+.ib .btns { display: flex; gap: 8px; }
+.ib .later { background: none; border: 1px solid var(--line); color: var(--muted); border-radius: 10px; padding: 10px 16px; font: inherit; cursor: pointer; }
+.ib ol { margin: 0; padding-inline-start: 20px; display: flex; flex-direction: column; gap: 6px; font-size: 0.95rem; }
+.ib ol b { display: inline; font-size: inherit; }
+.ib .sh { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: var(--bg); border: 1px solid var(--line); vertical-align: middle; margin-inline: 4px; }
+.ib .sh svg { width: 16px; height: 16px; }
+#installBtn { padding: 12px; }
+
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 
@@ -215,6 +231,7 @@ li.item.flash { animation: flash 1s ease; }
     <div class="sharebox" id="shareBox" hidden>
       <span>שלחו את הקישור הזה לבן/בת הזוג. מי שפותח אותו מצטרף לאותה רשימה.</span>
       <div class="row"><input id="shareUrl" readonly aria-label="קישור הצטרפות"><button type="button" class="solid" id="copyBtn">העתק</button></div>
+      <button type="button" class="solid" id="installBtn" hidden>התקנת האפליקציה במסך הבית</button>
       <button type="button" class="linkish" id="renameBtn">החלפת משתמש</button>
     </div>
     <div class="count" id="count">אין פריטים</div>
@@ -279,6 +296,19 @@ li.item.flash { animation: flash 1s ease; }
     <span class="sub">אפשר להחליף משתמש בכל רגע בלחיצה על התמונה שלך בראש המסך.</span>
   </div>
   <input type="file" id="photoFile" accept="image/*" hidden>
+</div>
+
+<div class="ib" id="installAndroid" role="dialog" aria-labelledby="ibTitle" hidden>
+  <div class="top"><img src="icon-192.png" alt=""><div><b id="ibTitle">להתקין את רשימת הקניות?</b><span>האפליקציה תיפתח ישר ממסך הבית, בלי לחפש את הקישור.</span></div></div>
+  <div class="btns"><button type="button" class="solid" id="ibInstall">התקנה</button><button type="button" class="later" data-later>לא עכשיו</button></div>
+</div>
+<div class="ib" id="installIos" role="dialog" aria-labelledby="ibIosTitle" hidden>
+  <div class="top"><img src="icon-192.png" alt=""><div><b id="ibIosTitle">להוסיף למסך הבית</b><span>שתי לחיצות, וזה נפתח כמו אפליקציה.</span></div></div>
+  <ol>
+    <li>לחצו על כפתור השיתוף <span class="sh"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg></span> בתחתית המסך</li>
+    <li>גללו ובחרו <b>הוספה למסך הבית</b></li>
+  </ol>
+  <div class="btns"><button type="button" class="later" data-later>הבנתי</button></div>
 </div>
 
 <div class="scrim" id="scrim" hidden></div>
@@ -683,7 +713,44 @@ li.item.flash { animation: flash 1s ease; }
     $("picker").hidden = true; $("otherBox").hidden = true;
     showMe(); render();
   }
-  function showMe() { $("meBtn").innerHTML = avatar(me); $("meBtn").hidden = !me; }
+  function showMe() { $("meBtn").innerHTML = avatar(me); $("meBtn").hidden = !me; if (me) offerInstall(); }
+
+  // ---------- install to home screen ----------
+  // Android browsers hand us an install prompt we can open from a tap; iPhone has no such
+  // API, so there we show the two manual steps. Nothing shows once the app runs from its icon.
+  const INSTALL_LATER = "shoppingList.installLater", LATER_DAYS = 14;
+  const isStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  let installEvent = null, installOffered = false;
+  addEventListener("beforeinstallprompt", e => { e.preventDefault(); installEvent = e; updateInstallBtn(); offerInstall(); });
+  addEventListener("appinstalled", () => { installEvent = null; hideInstall(); updateInstallBtn(); });
+  function laterUntil() { try { return +localStorage.getItem(INSTALL_LATER) || 0; } catch { return 0; } }
+  function updateInstallBtn() { $("installBtn").hidden = isStandalone() || !(installEvent || isIos); }
+  function hideInstall() { $("installAndroid").hidden = true; $("installIos").hidden = true; }
+  function showInstall() {
+    if (isStandalone()) return;
+    if (installEvent) $("installAndroid").hidden = false;
+    else if (isIos) $("installIos").hidden = false;
+  }
+  function offerInstall() {
+    if (installOffered || !me || isStandalone() || Date.now() < laterUntil()) return;
+    if (!installEvent && !isIos) return;
+    installOffered = true;
+    setTimeout(showInstall, 1500);   // let the list settle before asking
+  }
+  document.querySelectorAll(".ib [data-later]").forEach(b => b.addEventListener("click", () => {
+    hideInstall();
+    try { localStorage.setItem(INSTALL_LATER, String(Date.now() + LATER_DAYS * 864e5)); } catch {}
+  }));
+  $("ibInstall").addEventListener("click", async () => {
+    if (!installEvent) return hideInstall();
+    const ev = installEvent; installEvent = null; hideInstall();
+    try { await ev.prompt(); await ev.userChoice; } catch {}
+    updateInstallBtn();
+  });
+  $("installBtn").addEventListener("click", () => { $("shareBox").hidden = true; if (installEvent) $("ibInstall").click(); else showInstall(); });
+  input.addEventListener("focus", hideInstall);   // keep the banner out of the way while typing
+  updateInstallBtn();
   let photoFor = null;
   $("people").addEventListener("click", e => {
     const pb = e.target.closest("[data-photo]");
